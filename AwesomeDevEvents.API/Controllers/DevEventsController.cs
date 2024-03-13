@@ -1,4 +1,6 @@
-﻿using AwesomeDevEvents.API.Entities;
+﻿using AutoMapper;
+using AwesomeDevEvents.API.Entities;
+using AwesomeDevEvents.API.Models;
 using AwesomeDevEvents.API.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,16 +13,21 @@ namespace AwesomeDevEvents.API.Controllers
     public class DevEventsController : ControllerBase
     {
         private readonly DevEventsDBContext _context;
-        public DevEventsController(DevEventsDBContext context)
+        private readonly IMapper _mapper;
+        public DevEventsController(
+            DevEventsDBContext context, 
+            IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         [HttpGet]
         public IActionResult GetAll()
         {
             var devEvents = _context.Events.Where(d => !d.IsDeleted).ToList();
-            return Ok(devEvents);
+            var viewModel = _mapper.Map<List<DevEventViewModel>>(devEvents);
+            return Ok(viewModel);
         }
 
         [HttpGet("{id}")]
@@ -33,19 +40,22 @@ namespace AwesomeDevEvents.API.Controllers
             {
                 return NotFound();
             }
-            return Ok(devEvents);
+
+            var viewModel = _mapper.Map<DevEventViewModel>(devEvents);
+            return Ok(viewModel);
         }
 
         [HttpPost]
-        public IActionResult Post(DevEvent devEvent)
+        public IActionResult Post(DevEventInputModel input)
         {
+            var devEvent = _mapper.Map<DevEvent>(input);
             _context.Events.Add(devEvent);
             _context.SaveChanges();
             return CreatedAtAction(nameof(GetById), new { id = devEvent.Id }, devEvent);
         }
 
         [HttpPut("{id}")]
-        public IActionResult Update(Guid id, DevEvent devEvent)
+        public IActionResult Update(Guid id, DevEventInputModel devEvent)
         {
             var devEventSearched = _context.Events.SingleOrDefault(d => d.Id == id);
             if (devEventSearched == null)
@@ -74,8 +84,9 @@ namespace AwesomeDevEvents.API.Controllers
         }
 
         [HttpPost("{id}/speakers")]
-        public IActionResult PostSpeaker(Guid id, DevEventSpeaker devEventSpeaker)
+        public IActionResult PostSpeaker(Guid id, DevEventSpeakerInputModel input)
         {
+            var devEventSpeaker = _mapper.Map<DevEventSpeaker>(input);
             var devEvent = _context.Events.Any(e => e.Id == id);
             if (!devEvent)
                 return NotFound();
